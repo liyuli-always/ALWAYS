@@ -283,7 +283,12 @@ function renderMessageDOM(msg, index) {
   const timeStr = msg._time || '';
   
   const p = document.createElement('p');
-  p.innerHTML = escapeHtml(text).replace(/\\n/g, '<br>');
+  let formattedText = escapeHtml(text).replace(/\\n/g, '\n');
+  if (!isUser) {
+    formattedText = formattedText.replace(/([。！？!]+)[ 　]*(?!\n)/g, '$1\n');
+  }
+  formattedText = formattedText.replace(/\n/g, '<br>');
+  p.innerHTML = formattedText;
   const timeSpan = document.createElement('span');
   timeSpan.className = 'time';
   timeSpan.textContent = timeStr;
