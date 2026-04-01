@@ -656,7 +656,12 @@ async function callAPI(userMessage) {
 async function callGeminiAPI(apiKey, model, systemPrompt, config) {
   const ai = new GoogleGenAI({ apiKey });
 
-  const contents = conversationHistory.map(msg => ({
+  let recentHistory = conversationHistory.slice(-30);
+  if (recentHistory.length > 0 && recentHistory[0].role !== 'user') {
+    recentHistory = recentHistory.slice(1);
+  }
+  
+  const contents = recentHistory.map(msg => ({
     role: msg.role === 'assistant' ? 'model' : msg.role,
     parts: msg.parts || [{ text: msg._text || '' }],
   }));
@@ -703,7 +708,12 @@ async function callOpenAICompatibleAPI(apiKey, model, systemPrompt, config) {
   if (systemPrompt.trim()) {
     messages.push({ role: 'system', content: systemPrompt });
   }
-  conversationHistory.forEach(msg => {
+  let recentHistory = conversationHistory.slice(-30);
+  if (recentHistory.length > 0 && recentHistory[0].role !== 'user') {
+    recentHistory = recentHistory.slice(1);
+  }
+
+  recentHistory.forEach(msg => {
     messages.push({
       role: msg.role === 'model' ? 'assistant' : msg.role,
       content: msg._text || (msg.parts ? msg.parts[0].text : ''),
@@ -816,15 +826,8 @@ async function sendMessage() {
 // ===== Event Listeners =====
 sendBtn.addEventListener('click', sendMessage);
 
-inputField.addEventListener('keydown', function (e) {
-  // IME入力中（漢字変換中）のEnterは何もしない
-  if (e.isComposing) return;
-  
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-});
+// スマホでの改行を優先するため、Enterキーでの自動送信は無効化しています
+// 送信は横の送信ボタン（紙飛行機アイコン）からのみ行います
 
 // ===== Init =====
 window.addEventListener('load', () => {
