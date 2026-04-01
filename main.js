@@ -53,13 +53,18 @@ const STORAGE_KEYS = {
   API_KEY_PREFIX: 'chatroom_api_key_',  // per-provider: chatroom_api_key_gemini, etc.
   MODEL: 'chatroom_model',
   SYSTEM_PROMPT: 'chatroom_system_prompt',
-  CONVERSATION: 'chatroom_conversation',
+  CONVERSATION: 'chatroom_conversation', // Legacy marker
+  SESSIONS: 'chatroom_sessions',
+  SESSION_PREFIX: 'chatroom_session_',
+  CURRENT_SESSION: 'chatroom_current_session',
 };
 
 // ===== State =====
-let conversationHistory = []; // Array of {role, parts: [{text}]}
+let conversationHistory = []; // {role, parts: [{text}]}
 let isStreaming = false;
 let currentAbortController = null;
+let sessionsMetadata = []; // { id, title, updatedAt }
+let currentSessionId = null;
 
 // ===== DOM Elements =====
 const inputField = document.getElementById('inputField');
@@ -82,6 +87,12 @@ const clearChatBtn = document.getElementById('clearChatBtn');
 const connectionDot = document.getElementById('connectionDot');
 const statusText = document.getElementById('statusText');
 const toastEl = document.getElementById('toast');
+const sidebarBtn = document.getElementById('sidebarBtn');
+const sidebarPanel = document.getElementById('sidebarPanel');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+const sidebarClose = document.getElementById('sidebarClose');
+const newChatBtn = document.getElementById('newChatBtn');
+const sessionList = document.getElementById('sessionList');
 
 // ===== Provider UI Helpers =====
 function getCurrentProvider() {
@@ -247,42 +258,330 @@ systemPromptInput.addEventListener('input', () => {
 });
 
 // ===== Conversation History Management =====
-function saveConversation() {
-  localStorage.setItem(STORAGE_KEYS.CONVERSATION, JSON.stringify(conversationHistory));
+function saveSessionsMetadata() {
+  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessionsMetadata));
 }
 
-function loadConversation() {
-  const saved = localStorage.getItem(STORAGE_KEYS.CONVERSATION);
-  if (saved) {
+function refreshMessagesUI() {
+  const children = Array.from(messagesContainer.children);
+  children.forEach((child, idx) => {
+    if (idx > 1) child.remove(); // Keep dividers
+  });
+  
+  conversationHistory.forEach((msg, index) => {
+    renderMessageDOM(msg, index);
+  });
+  scrollToBottom();
+}
+
+function renderMessageDOM(msg, index) {
+  const div = document.createElement('div');
+  const isUser = msg.role === 'user';
+  div.className = 'message ' + (isUser ? 'sent' : 'received');
+  div.style.animationDelay = '0s';
+  const text = msg._text || (msg.parts ? msg.parts[0].text : '');
+  const timeStr = msg._time || '';
+  
+  const p = document.createElement('p');
+  p.innerHTML = escapeHtml(text).replace(/\\n/g, '<br>');
+  const timeSpan = document.createElement('span');
+  timeSpan.className = 'time';
+  timeSpan.textContent = timeStr;
+  
+  div.appendChild(p);
+  div.appendChild(timeSpan);
+  
+  if (isUser) {
+    const editBtn = document.createElement('button');
+    editBtn.className = 'msg-edit-btn';
+    editBtn.innerHTML = '✎';
+    editBtn.title = '編集して再送信';
+    div.appendChild(editBtn);
+    
+    editBtn.onclick = () => {
+      div.innerHTML = '';
+      const container = document.createElement('div');
+      container.className = 'msg-edit-container';
+      
+      const textarea = document.createElement('textarea');
+      textarea.className = 'msg-edit-textarea';
+      textarea.value = text;
+      
+      const actions = document.createElement('div');
+      actions.className = 'msg-edit-actions';
+      
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'msg-edit-action-btn';
+      cancelBtn.textContent = 'キャンセル';
+      cancelBtn.onclick = () => refreshMessagesUI();
+      
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'msg-edit-action-btn save';
+      saveBtn.textContent = '保存して再送信';
+      saveBtn.onclick = async () => {
+        const newText = textarea.value.trim();
+        if (!newText) return;
+        
+        msg._text = newText;
+        msg.parts = [{ text: newText }];
+        msg._time = formatTime(new Date());
+        
+        conversationHistory = conversationHistory.slice(0, index + 1);
+        saveConversation();
+        refreshMessagesUI();
+        
+        if (isStreaming) return;
+        isStreaming = true;
+        scrollToBottom();
+        setTimeout(() => showTypingIndicator(), 300);
+        
+        const result = await callAPI(newText);
+        removeTypingIndicator();
+        const replyTime = formatTime(new Date());
+        
+        if (result.aborted) {
+          isStreaming = false;
+          return;
+        }
+        
+        if (result.error) {
+          const errMsg = document.createElement('div');
+          errMsg.className = 'message received error';
+          errMsg.innerHTML = `<p>${escapeHtml(result.error).replace(/\\n/g, '<br>')}</p><span class="time">${replyTime}</span>`;
+          messagesContainer.appendChild(errMsg);
+          scrollToBottom();
+          isStreaming = false;
+          return;
+        }
+        
+        conversationHistory.push({
+          role: 'model',
+          parts: [{ text: result.text }],
+          _text: result.text,
+          _time: replyTime,
+        });
+        saveConversation();
+        refreshMessagesUI();
+        isStreaming = false;
+      };
+      
+      actions.appendChild(cancelBtn);
+      actions.appendChild(saveBtn);
+      container.appendChild(textarea);
+      container.appendChild(actions);
+      
+      div.appendChild(container);
+      textarea.focus();
+    };
+  }
+  messagesContainer.appendChild(div);
+}
+
+function loadSession(id) {
+  currentSessionId = id;
+  localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, id);
+  const data = localStorage.getItem(STORAGE_KEYS.SESSION_PREFIX + id);
+  if (data) {
     try {
-      conversationHistory = JSON.parse(saved);
-      // Re-render messages
-      conversationHistory.forEach((msg, idx) => {
-        const div = document.createElement('div');
-        const isUser = msg.role === 'user';
-        div.className = 'message ' + (isUser ? 'sent' : 'received');
-        div.style.animationDelay = '0s';
-        const text = msg._text || (msg.parts ? msg.parts[0].text : '');
-        const timeStr = msg._time || '';
-        div.innerHTML = `<p>${escapeHtml(text).replace(/\\n/g, '<br>')}</p><span class="time">${timeStr}</span>`;
-        messagesContainer.appendChild(div);
-      });
-      scrollToBottom();
-    } catch (e) {
-      conversationHistory = [];
+      conversationHistory = JSON.parse(data);
+    } catch(e) { conversationHistory = []; }
+  } else {
+    conversationHistory = [];
+  }
+  
+  refreshMessagesUI();
+  renderSessionList();
+  closeSidebar();
+}
+
+function createNewSession() {
+  currentSessionId = Date.now().toString();
+  conversationHistory = [];
+  localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, currentSessionId);
+  localStorage.setItem(STORAGE_KEYS.SESSION_PREFIX + currentSessionId, JSON.stringify([]));
+  
+  sessionsMetadata.unshift({
+    id: currentSessionId,
+    title: '新しいチャット',
+    updatedAt: Date.now()
+  });
+  saveSessionsMetadata();
+  
+  refreshMessagesUI();
+  renderSessionList();
+  closeSidebar();
+}
+
+function renderSessionList() {
+  if (!sessionList) return;
+  sessionList.innerHTML = '';
+  
+  sessionsMetadata.forEach(session => {
+    const el = document.createElement('div');
+    el.className = 'session-item' + (session.id === currentSessionId ? ' active' : '');
+    
+    const title = document.createElement('div');
+    title.className = 'session-title';
+    title.textContent = session.title;
+    
+    const dateBox = document.createElement('div');
+    dateBox.className = 'session-date';
+    const d = new Date(session.updatedAt);
+    dateBox.textContent = `${d.getMonth()+1}/${d.getDate()} ${formatTime(d)}`;
+    
+    const editBtn = document.createElement('button');
+    editBtn.className = 'session-edit';
+    editBtn.innerHTML = '✎';
+    editBtn.title = 'タイトルを編集';
+    editBtn.onclick = (e) => {
+      e.stopPropagation();
+      
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = session.title;
+      input.className = 'session-title-edit';
+      
+      title.replaceWith(input);
+      input.focus();
+
+      let isSaved = false;
+      const saveEdit = () => {
+        if (isSaved) return;
+        isSaved = true;
+        const newTitle = input.value.trim();
+        if (newTitle !== '') {
+          session.title = newTitle;
+          saveSessionsMetadata();
+        }
+        renderSessionList();
+      };
+
+      input.onblur = saveEdit;
+      input.onkeydown = (ev) => {
+        if (ev.isComposing) return;
+        if (ev.key === 'Enter') saveEdit();
+        if (ev.key === 'Escape') {
+          isSaved = true;
+          renderSessionList();
+        }
+      };
+      input.onclick = (ev) => ev.stopPropagation();
+    };
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'session-delete';
+    delBtn.innerHTML = '×';
+    delBtn.title = '削除';
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      deleteSession(session.id);
+    };
+    
+    el.appendChild(title);
+    el.appendChild(dateBox);
+    el.appendChild(editBtn);
+    el.appendChild(delBtn);
+    
+    el.onclick = () => loadSession(session.id);
+    
+    sessionList.appendChild(el);
+  });
+}
+
+function deleteSession(id) {
+  if (!confirm('この会話履歴を削除しますか？')) return;
+  
+  localStorage.removeItem(STORAGE_KEYS.SESSION_PREFIX + id);
+  sessionsMetadata = sessionsMetadata.filter(s => s.id !== id);
+  saveSessionsMetadata();
+  
+  if (currentSessionId === id || sessionsMetadata.length === 0) {
+    if (sessionsMetadata.length > 0) {
+      loadSession(sessionsMetadata[0].id);
+    } else {
+      createNewSession();
     }
+  } else {
+    renderSessionList();
+  }
+}
+
+function saveConversation() {
+  if (!currentSessionId) return;
+  localStorage.setItem(STORAGE_KEYS.SESSION_PREFIX + currentSessionId, JSON.stringify(conversationHistory));
+  
+  let session = sessionsMetadata.find(s => s.id === currentSessionId);
+  if (session) {
+    if (conversationHistory.length === 1 && conversationHistory[0].role === 'user') {
+      let text = conversationHistory[0]._text || '';
+      session.title = text.length > 20 ? text.slice(0, 20) + '...' : (text || '新しいチャット');
+    } else if (session.title === '新しいチャット' && conversationHistory.length > 0) {
+      const firstUser = conversationHistory.find(m => m.role === 'user');
+      if (firstUser) {
+        let text = firstUser._text || '';
+        session.title = text.length > 20 ? text.slice(0, 20) + '...' : (text || '新しいチャット');
+      }
+    }
+    session.updatedAt = Date.now();
+    
+    sessionsMetadata = sessionsMetadata.filter(s => s.id !== currentSessionId);
+    sessionsMetadata.unshift(session);
+    saveSessionsMetadata();
+    renderSessionList(); 
   }
 }
 
 function clearConversation() {
   conversationHistory = [];
-  localStorage.removeItem(STORAGE_KEYS.CONVERSATION);
-  // Remove all messages except date divider and welcome
-  const children = Array.from(messagesContainer.children);
-  children.forEach((child, idx) => {
-    if (idx > 1) child.remove(); // Keep date divider (0) and welcome (1)
-  });
-  showToast('会話履歴をクリアしました');
+  if (currentSessionId) {
+    localStorage.setItem(STORAGE_KEYS.SESSION_PREFIX + currentSessionId, JSON.stringify([]));
+  }
+  refreshMessagesUI();
+  showToast('現在の会話内容をクリアしました');
+}
+
+// Sidebar handlers
+function openSidebar() {
+  sidebarOverlay.classList.add('open');
+  sidebarPanel.classList.add('open');
+}
+function closeSidebar() {
+  sidebarOverlay.classList.remove('open');
+  sidebarPanel.classList.remove('open');
+}
+
+if (sidebarBtn) sidebarBtn.addEventListener('click', openSidebar);
+if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+if (sidebarClose) sidebarClose.addEventListener('click', closeSidebar);
+if (newChatBtn) newChatBtn.addEventListener('click', createNewSession);
+
+function initSessionManager() {
+  const legacyConv = localStorage.getItem(STORAGE_KEYS.CONVERSATION);
+  if (legacyConv) {
+    const id = Date.now().toString();
+    sessionsMetadata.push({ id, title: '過去の会話', updatedAt: Date.now() });
+    localStorage.setItem(STORAGE_KEYS.SESSION_PREFIX + id, legacyConv);
+    localStorage.removeItem(STORAGE_KEYS.CONVERSATION);
+  }
+
+  const saved = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+  if (saved) {
+    try {
+      sessionsMetadata = JSON.parse(saved);
+      sessionsMetadata.sort((a, b) => b.updatedAt - a.updatedAt);
+    } catch(e) { sessionsMetadata = []; }
+  }
+  
+  saveSessionsMetadata();
+  const savedCurrent = localStorage.getItem(STORAGE_KEYS.CURRENT_SESSION);
+  
+  if (savedCurrent && sessionsMetadata.find(s => s.id === savedCurrent)) {
+    loadSession(savedCurrent);
+  } else if (sessionsMetadata.length > 0) {
+    loadSession(sessionsMetadata[0].id);
+  } else {
+    createNewSession();
+  }
 }
 
 clearHistoryBtn.addEventListener('click', () => {
@@ -457,13 +756,7 @@ async function sendMessage() {
   const now = new Date();
   const timeStr = formatTime(now);
 
-  // Add user message to DOM
-  const userMsg = document.createElement('div');
-  userMsg.className = 'message sent';
-  userMsg.innerHTML = `<p>${escapeHtml(text).replace(/\\n/g, '<br>')}</p><span class="time">${timeStr}</span>`;
-  messagesContainer.appendChild(userMsg);
-
-  // Add to history (store in normalized format)
+  const msgIndex = conversationHistory.length;
   conversationHistory.push({
     role: 'user',
     parts: [{ text }],
@@ -471,19 +764,18 @@ async function sendMessage() {
     _time: timeStr,
   });
 
+  renderMessageDOM(conversationHistory[msgIndex], msgIndex);
+
   inputField.value = '';
   inputField.style.height = 'auto';
   sendBtn.classList.remove('active');
   scrollToBottom();
 
-  // Show typing indicator
   setTimeout(() => showTypingIndicator(), 300);
 
-  // Call API
   const result = await callAPI(text);
 
   removeTypingIndicator();
-
   const replyTime = formatTime(new Date());
 
   if (result.aborted) {
@@ -492,7 +784,6 @@ async function sendMessage() {
   }
 
   if (result.error) {
-    // Show error as system message
     const errMsg = document.createElement('div');
     errMsg.className = 'message received error';
     errMsg.innerHTML = `<p>${escapeHtml(result.error).replace(/\\n/g, '<br>')}</p><span class="time">${replyTime}</span>`;
@@ -502,19 +793,15 @@ async function sendMessage() {
     return;
   }
 
-  // Add AI reply to DOM
-  const aiMsg = document.createElement('div');
-  aiMsg.className = 'message received';
-  aiMsg.innerHTML = `<p>${escapeHtml(result.text).replace(/\\n/g, '<br>')}</p><span class="time">${replyTime}</span>`;
-  messagesContainer.appendChild(aiMsg);
-
-  // Add to history (use 'model' role for Gemini compat, normalized with _text)
+  const aiIndex = conversationHistory.length;
   conversationHistory.push({
     role: 'model',
     parts: [{ text: result.text }],
     _text: result.text,
     _time: replyTime,
   });
+
+  renderMessageDOM(conversationHistory[aiIndex], aiIndex);
 
   saveConversation();
   scrollToBottom();
@@ -540,7 +827,7 @@ window.addEventListener('load', () => {
   const currentProvider = getCurrentProvider();
   updateProviderUI(currentProvider);
   updateConnectionStatus();
-  loadConversation();
+  initSessionManager();
   
   // Load system prompt so it's ready on page load
   systemPromptInput.value = localStorage.getItem(STORAGE_KEYS.SYSTEM_PROMPT) || '';

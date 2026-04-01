@@ -315,6 +315,95 @@
       color: rgba(170, 195, 230, 0.4);
     }
 
+    .message.sent:hover .msg-edit-btn {
+      opacity: 1;
+    }
+
+    .msg-edit-btn {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      background: var(--receiver-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 50%;
+      width: 26px;
+      height: 26px;
+      color: var(--text-dim);
+      font-size: 13px;
+      cursor: pointer;
+      opacity: 0;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      backdrop-filter: blur(10px);
+    }
+
+    .msg-edit-btn:hover {
+      color: var(--glow-cyan);
+      border-color: var(--glow-cyan);
+    }
+
+    .msg-edit-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .msg-edit-textarea {
+      width: 100%;
+      background: rgba(10, 17, 40, 0.6);
+      border: 1px solid rgba(45, 95, 160, 0.4);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      resize: vertical;
+      min-height: 80px;
+      outline: none;
+      line-height: 1.5;
+    }
+
+    .msg-edit-textarea:focus {
+      border-color: var(--glow-cyan);
+    }
+
+    .msg-edit-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .msg-edit-action-btn {
+      padding: 6px 14px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 300;
+      cursor: pointer;
+      border: 1px solid var(--border-subtle);
+      background: transparent;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+      letter-spacing: 0.05em;
+    }
+
+    .msg-edit-action-btn:hover {
+      background: rgba(45, 95, 160, 0.15);
+      color: var(--text-primary);
+    }
+
+    .msg-edit-action-btn.save {
+      background: linear-gradient(135deg, var(--accent-blue), var(--glow-cyan));
+      color: var(--text-primary);
+      border: none;
+    }
+
+    .msg-edit-action-btn.save:hover {
+      box-shadow: 0 4px 12px rgba(45, 95, 160, 0.4);
+    }
+
     /* Read receipt */
     .message.sent .read-receipt {
       font-size: 9px;
@@ -834,6 +923,230 @@
       background: var(--text-dim);
     }
 
+    /* ===== Sidebar Panel (Slide-over from left) ===== */
+    .sidebar-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(5, 8, 18, 0.6);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+
+    .sidebar-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .sidebar-panel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 85%;
+      max-width: 320px;
+      z-index: 101;
+      background: var(--deep-navy);
+      transform: translateX(-100%);
+      transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-right: 1px solid var(--border-subtle);
+    }
+
+    .sidebar-panel.open {
+      transform: translateX(0);
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(10, 17, 40, 0.6);
+      border-bottom: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+    }
+
+    .sidebar-header h2 {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      font-weight: 300;
+      letter-spacing: 0.08em;
+      color: var(--text-primary);
+    }
+
+    .sidebar-close {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 22px;
+      cursor: pointer;
+      padding: 4px 8px;
+      transition: color 0.3s ease;
+    }
+
+    .sidebar-close:hover {
+      color: var(--text-primary);
+    }
+
+    .sidebar-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px 40px;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .sidebar-body::-webkit-scrollbar {
+      display: none;
+    }
+
+    .sidebar-actions {
+      display: flex;
+    }
+
+    .sidebar-btn {
+      width: 100%;
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      background: var(--input-bg);
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 300;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      letter-spacing: 0.04em;
+    }
+
+    .sidebar-btn.primary {
+      background: linear-gradient(135deg, var(--accent-blue), var(--glow-cyan));
+      border: none;
+      color: var(--text-primary);
+    }
+
+    .sidebar-btn.primary:hover {
+      box-shadow: 0 4px 20px rgba(45, 95, 160, 0.3);
+    }
+
+    .session-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .session-item {
+      display: flex;
+      flex-direction: column;
+      padding: 14px 16px;
+      background: rgba(15, 27, 61, 0.4);
+      border: 1px solid rgba(45, 95, 160, 0.1);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .session-item:hover {
+      background: rgba(28, 58, 110, 0.3);
+      border-color: rgba(45, 95, 160, 0.3);
+    }
+
+    .session-item.active {
+      background: rgba(45, 95, 160, 0.2);
+      border-color: var(--glow-cyan);
+    }
+
+    .session-title {
+      font-size: 13px;
+      font-weight: 300;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-right: 24px;
+    }
+
+    .session-title-edit {
+      width: calc(100% - 40px);
+      background: rgba(10, 17, 40, 0.9);
+      border: 1px solid rgba(45, 95, 160, 0.6);
+      border-radius: 4px;
+      padding: 4px 8px;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 300;
+      outline: none;
+      margin-bottom: 6px;
+      box-shadow: 0 0 10px rgba(45, 95, 160, 0.2);
+    }
+    .session-title-edit:focus {
+      border-color: var(--glow-cyan);
+    }
+
+    .session-date {
+      font-family: var(--font-serif);
+      font-size: 10px;
+      font-weight: 300;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+    }
+
+    .session-edit {
+      position: absolute;
+      top: 14px;
+      right: 36px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 14px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease, color 0.2s ease;
+    }
+
+    .session-item:hover .session-edit {
+      opacity: 1;
+    }
+
+    .session-edit:hover {
+      color: var(--glow-cyan);
+    }
+
+    .session-delete {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 16px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease, color 0.2s ease;
+    }
+
+    .session-item:hover .session-delete {
+      opacity: 1;
+    }
+
+    .session-delete:hover {
+      color: var(--error-red);
+    }
+
     /* ===== Scrollbar for desktop preview ===== */
     @media (min-width: 431px) {
       .app {
@@ -842,10 +1155,25 @@
       }
       .settings-panel {
         right: 50%;
-        transform: translateX(50%) translateX(100%);
+        transform: translateX(50%) translateX(50%);
+        opacity: 0;
+        visibility: hidden;
       }
       .settings-panel.open {
         transform: translateX(50%) translateX(0);
+        opacity: 1;
+        visibility: visible;
+      }
+      .sidebar-panel {
+        left: 50%;
+        transform: translateX(-50%) translateX(-50%);
+        opacity: 0;
+        visibility: hidden;
+      }
+      .sidebar-panel.open {
+        transform: translateX(-50%) translateX(0);
+        opacity: 1;
+        visibility: visible;
       }
     }
   </style>
@@ -870,7 +1198,7 @@
     <!-- Header -->
     <div class="header">
       <div class="header-left">
-        <button class="back-btn" aria-label="Back">‹</button>
+        <button class="back-btn" id="sidebarBtn" aria-label="Menu" title="履歴">≡</button>
         <div class="avatar">A</div>
         <div class="header-info">
           <h1>Chat Room</h1>
@@ -991,6 +1319,25 @@
         <div class="settings-btn-row">
           <button class="settings-btn danger" id="clearHistoryBtn">会話履歴をクリア</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Sidebar Panel -->
+  <div class="sidebar-panel" id="sidebarPanel">
+    <div class="sidebar-header">
+      <h2>History</h2>
+      <button class="sidebar-close" id="sidebarClose">×</button>
+    </div>
+    <div class="sidebar-body">
+      <div class="sidebar-actions">
+        <button class="sidebar-btn primary" id="newChatBtn">＋ 新しいチャット</button>
+      </div>
+      <div class="session-list" id="sessionList">
+        <!-- Sessions will be injected here -->
       </div>
     </div>
   </div>
