@@ -84,6 +84,8 @@ const systemPromptInput = document.getElementById('systemPromptInput');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 const clearChatBtn = document.getElementById('clearChatBtn');
+const exportJsonBtn = document.getElementById('exportJsonBtn');
+const exportHtmlBtn = document.getElementById('exportHtmlBtn');
 const connectionDot = document.getElementById('connectionDot');
 const statusText = document.getElementById('statusText');
 const toastEl = document.getElementById('toast');
@@ -822,6 +824,132 @@ async function sendMessage() {
   scrollToBottom();
   isStreaming = false;
 }
+
+// ===== Export Features =====
+async function downloadStringAsFile(dataStr, mimeType, filename) {
+  const safeName = filename.trim();
+  const blob = new Blob([dataStr], { type: mimeType });
+
+  // Primary: File System Access API (showSaveFilePicker)
+  // This presents a native "Save As" dialog with the correct filename pre-filled.
+  // Works reliably on Chrome, Edge, and other modern Chromium-based browsers.
+  if (window.showSaveFilePicker) {
+    try {
+      const ext = safeName.includes('.') ? safeName.split('.').pop() : '';
+      const acceptTypes = {};
+      if (ext) {
+        acceptTypes[mimeType] = ['.' + ext];
+      }
+      const handle = await window.showSaveFilePicker({
+        suggestedName: safeName,
+        types: [{
+          description: ext.toUpperCase() + ' file',
+          accept: acceptTypes,
+        }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (err) {
+      // User cancelled the save dialog — just return silently
+      if (err.name === 'AbortError') return;
+      // If API fails for another reason, fall through to fallback
+      console.warn('showSaveFilePicker failed, using fallback:', err);
+    }
+  }
+
+  // Fallback: Blob URL + <a> download attribute
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = url;
+  a.download = safeName;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 1000);
+}
+
+function getFormattedDateForFile() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${yyyy}${mm}${dd}_${hh}${min}`;
+}
+
+function exportAsJson() {
+  if (conversationHistory.length === 0) {
+    showToast('書き出す履歴がありません', 'error');
+    return;
+  }
+  const sessionTitle = sessionsMetadata.find(s => s.id === currentSessionId)?.title || 'chat';
+  const safeTitle = sessionTitle.replace(/[\\/:*?"<>|\r\n\t]/g, '_').substring(0, 30);
+  const jsonStr = JSON.stringify(conversationHistory, null, 2);
+  const fileName = `${safeTitle}_${getFormattedDateForFile()}.json`;
+  downloadStringAsFile(jsonStr, 'application/json', fileName);
+  showToast('JSONとして保存しました');
+  closeSettings();
+}
+
+function exportAsHtml() {
+  if (conversationHistory.length === 0) {
+    showToast('書き出す履歴がありません', 'error');
+    return;
+  }
+  const sessionTitle = sessionsMetadata.find(s => s.id === currentSessionId)?.title || 'chat';
+  const safeTitle = sessionTitle.replace(/[\\/:*?"<>|\r\n\t]/g, '_').substring(0, 30);
+  
+  let htmlContent = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(sessionTitle)} - Chat Export</title>
+  <style>
+    body { font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+    .message { margin-bottom: 20px; padding: 15px; border-radius: 8px; }
+    .user { background: #e3f2fd; margin-left: 20%; border: 1px solid #bbdefb; }
+    .model { background: #fff; margin-right: 20%; border: 1px solid #e0e0e0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .meta { font-size: 0.8em; color: #888; margin-bottom: 5px; }
+    .content { white-space: pre-wrap; }
+    .header { text-align: center; margin-bottom: 40px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${escapeHtml(sessionTitle)}</h1>
+    <p>Exported on: ${new Date().toLocaleString()}</p>
+  </div>
+`;
+
+  conversationHistory.forEach(msg => {
+    const roleName = msg.role === 'user' ? 'You' : 'AI';
+    const text = escapeHtml(msg._text || (msg.parts ? msg.parts[0].text : ''));
+    htmlContent += `
+  <div class="message ${msg.role === 'user' ? 'user' : 'model'}">
+    <div class="meta">${roleName} - ${msg._time || ''}</div>
+    <div class="content">${text}</div>
+  </div>`;
+  });
+
+  htmlContent += `
+</body>
+</html>`;
+
+  const fileName = `${safeTitle}_${getFormattedDateForFile()}.html`;
+  downloadStringAsFile(htmlContent, 'text/html', fileName);
+  showToast('HTMLとして保存しました');
+  closeSettings();
+}
+
+if (exportJsonBtn) exportJsonBtn.addEventListener('click', exportAsJson);
+if (exportHtmlBtn) exportHtmlBtn.addEventListener('click', exportAsHtml);
 
 // ===== Event Listeners =====
 sendBtn.addEventListener('click', sendMessage);

@@ -50,22 +50,33 @@
       position: fixed;
       inset: 0;
       z-index: 0;
-      background: radial-gradient(
-        ellipse 120% 80% at 50% 60%,
-        var(--navy-mid) 0%,
-        var(--deep-navy) 70%
-      );
-      animation: breathe 8s ease-in-out infinite;
+      /* Base: Pitch Black */
+      background: #000000;
     }
 
-    @keyframes breathe {
+    .breathing-bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      /* Overlay: Deep Navy Radial Gradient */
+      background: radial-gradient(
+        ellipse 120% 100% at 50% 60%,
+        var(--navy-mid) 0%,
+        var(--deep-navy) 60%,
+        #000000 100%
+      );
+      /* Slow breathing animation over 12 seconds */
+      animation: breathe-dark 12s ease-in-out infinite;
+    }
+
+    @keyframes breathe-dark {
       0%, 100% {
-        opacity: 1;
-        filter: brightness(1);
+        opacity: 0.9;
+        transform: scale(1);
       }
       50% {
-        opacity: 0.88;
-        filter: brightness(1.12);
+        opacity: 0.15;
+        transform: scale(1.02); /* Slight expansion for breathing feel */
       }
     }
 
@@ -1307,6 +1318,18 @@
         ></textarea>
         <div class="settings-hint">
           ここに書いた内容がAIの性格・話し方の基盤になります。<br>チャットのたびに自動的に反映されます。
+        </div>
+      </div>
+
+      <!-- Export -->
+      <div class="settings-section">
+        <div class="settings-section-title">Export</div>
+        <div class="settings-btn-row">
+          <button class="settings-btn" id="exportJsonBtn">JSONとして保存</button>
+          <button class="settings-btn" id="exportHtmlBtn">HTMLとして保存</button>
+        </div>
+        <div class="settings-hint">
+          現在の会話をファイルとしてダウンロードします。
         </div>
       </div>
 
