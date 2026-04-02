@@ -24,10 +24,10 @@
       --text-primary: rgba(210, 220, 240, 0.92);
       --text-secondary: rgba(170, 185, 215, 0.7);
       --text-dim: rgba(140, 160, 195, 0.45);
-      --sender-bg: rgba(28, 58, 110, 0.35);
-      --receiver-bg: rgba(15, 27, 61, 0.55);
+      --sender-bg: rgba(28, 58, 110, 0.5);
+      --receiver-bg: rgba(15, 27, 61, 0.5);
       --border-subtle: rgba(45, 95, 160, 0.15);
-      --input-bg: rgba(10, 17, 40, 0.85);
+      --input-bg: rgba(10, 17, 40, 0.7);
       --font-serif: 'Cormorant Garamond', serif;
       --font-sans: 'Noto Sans JP', sans-serif;
       --success-green: rgba(78, 205, 196, 0.8);
@@ -280,8 +280,8 @@
       background: var(--sender-bg);
       border: 1px solid rgba(45, 95, 160, 0.2);
       border-bottom-right-radius: 4px;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
     }
 
     .message.received {
@@ -289,8 +289,8 @@
       background: var(--receiver-bg);
       border: 1px solid rgba(22, 32, 68, 0.4);
       border-bottom-left-radius: 4px;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
     }
 
     .message.error {
