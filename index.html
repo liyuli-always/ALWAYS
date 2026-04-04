@@ -24,7 +24,7 @@
       --text-primary: rgba(210, 220, 240, 0.92);
       --text-secondary: rgba(170, 185, 215, 0.7);
       --text-dim: rgba(140, 160, 195, 0.45);
-      --sender-bg: rgba(28, 58, 110, 0.5);
+      --sender-bg: rgba(10, 17, 40, 0.7);
       --receiver-bg: rgba(15, 27, 61, 0.5);
       --border-subtle: rgba(45, 95, 160, 0.15);
       --input-bg: rgba(10, 17, 40, 0.7);
@@ -286,11 +286,10 @@
 
     .message.received {
       align-self: flex-start;
-      background: var(--receiver-bg);
-      border: 1px solid rgba(22, 32, 68, 0.4);
-      border-bottom-left-radius: 4px;
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
+      background: transparent;
+      border: none;
+      padding: 12px 4px; /* Slight horizontal padding so it doesn't touch the absolute edge */
+      max-width: 95%; /* Take up more screen space */
     }
 
     .message.error {
@@ -332,15 +331,15 @@
 
     .msg-edit-btn {
       position: absolute;
-      top: -10px;
-      right: -10px;
+      top: -16px;
+      right: -16px;
       background: var(--receiver-bg);
       border: 1px solid var(--border-subtle);
       border-radius: 50%;
-      width: 26px;
-      height: 26px;
+      width: 36px;
+      height: 36px;
       color: var(--text-dim);
-      font-size: 13px;
+      font-size: 18px;
       cursor: pointer;
       opacity: 0;
       transition: all 0.2s ease;
@@ -351,9 +350,31 @@
       backdrop-filter: blur(10px);
     }
 
+    .msg-regen-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 27, 61, 0.4);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 6px 14px;
+      color: var(--text-dim);
+      font-size: 11px;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: all 0.2s ease;
+      letter-spacing: 0.05em;
+    }
+
     .msg-edit-btn:hover {
       color: var(--glow-cyan);
       border-color: var(--glow-cyan);
+    }
+
+    .msg-regen-btn:hover {
+      color: var(--glow-cyan);
+      border-color: rgba(45, 95, 160, 0.4);
+      background: rgba(45, 95, 160, 0.15);
     }
 
     .msg-edit-container {
@@ -425,39 +446,25 @@
     /* ===== Typing Indicator ===== */
     .typing-indicator {
       align-self: flex-start;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 12px 18px;
-      background: var(--receiver-bg);
-      border: 1px solid rgba(22, 32, 68, 0.4);
-      border-radius: 18px;
-      border-bottom-left-radius: 4px;
-      backdrop-filter: blur(10px);
+      padding: 12px 4px;
+      background: transparent;
+      border: none;
       opacity: 0;
       animation: msg-appear 0.4s ease forwards;
     }
 
-    .typing-indicator .dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: var(--text-dim);
-      animation: typing-bounce 1.4s ease-in-out infinite;
+    .typing-text {
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 200;
+      color: var(--text-dim);
+      animation: text-pulse 4s ease-in-out infinite;
+      letter-spacing: 0.05em;
     }
 
-    .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
-    .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
-
-    @keyframes typing-bounce {
-      0%, 60%, 100% {
-        transform: translateY(0);
-        opacity: 0.4;
-      }
-      30% {
-        transform: translateY(-6px);
-        opacity: 1;
-      }
+    @keyframes text-pulse {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 1; text-shadow: 0 0 6px rgba(210, 220, 240, 0.4); }
     }
 
     /* ===== Input Area ===== */
@@ -1087,11 +1094,11 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      padding-right: 24px;
+      padding-right: 80px;
     }
 
     .session-title-edit {
-      width: calc(100% - 40px);
+      width: calc(100% - 80px);
       background: rgba(10, 17, 40, 0.9);
       border: 1px solid rgba(45, 95, 160, 0.6);
       border-radius: 4px;
@@ -1118,12 +1125,17 @@
 
     .session-edit {
       position: absolute;
-      top: 14px;
-      right: 36px;
+      top: 8px;
+      right: 44px;
       background: none;
       border: none;
       color: var(--text-dim);
-      font-size: 14px;
+      font-size: 18px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
       opacity: 0;
       transition: opacity 0.2s ease, color 0.2s ease;
@@ -1139,12 +1151,17 @@
 
     .session-delete {
       position: absolute;
-      top: 12px;
-      right: 12px;
+      top: 8px;
+      right: 8px;
       background: none;
       border: none;
       color: var(--text-dim);
-      font-size: 16px;
+      font-size: 22px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
       opacity: 0;
       transition: opacity 0.2s ease, color 0.2s ease;
@@ -1220,7 +1237,6 @@
         </div>
       </div>
       <div class="header-right">
-        <button class="header-icon" id="clearChatBtn" aria-label="Clear chat" title="チャットをクリア">✧</button>
         <button class="header-icon" id="settingsBtn" aria-label="Settings" title="設定">⚙</button>
       </div>
     </div>
@@ -1231,11 +1247,6 @@
         <span id="dateDivider"></span>
       </div>
 
-      <!-- Welcome message -->
-      <div class="message received" style="animation-delay: 0.1s">
-        <p>設定画面からAPIキーを入力すると、AIとの会話を始められます。<br>右上の ⚙ ボタンをタップしてください。</p>
-        <span class="time" id="welcomeTime"></span>
-      </div>
     </div>
 
     <!-- Input Area -->

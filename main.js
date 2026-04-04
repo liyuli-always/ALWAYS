@@ -83,7 +83,6 @@ const modelSelect = document.getElementById('modelSelect');
 const systemPromptInput = document.getElementById('systemPromptInput');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
-const clearChatBtn = document.getElementById('clearChatBtn');
 const exportJsonBtn = document.getElementById('exportJsonBtn');
 const exportHtmlBtn = document.getElementById('exportHtmlBtn');
 const connectionDot = document.getElementById('connectionDot');
@@ -162,7 +161,6 @@ providerSelect.addEventListener('change', () => {
   const now = new Date();
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   document.getElementById('dateDivider').textContent = `${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
-  document.getElementById('welcomeTime').textContent = formatTime(now);
 })();
 
 // ===== Utility Functions =====
@@ -267,7 +265,7 @@ function saveSessionsMetadata() {
 function refreshMessagesUI() {
   const children = Array.from(messagesContainer.children);
   children.forEach((child, idx) => {
-    if (idx > 1) child.remove(); // Keep dividers
+    if (idx > 0) child.remove(); // Keep dividers
   });
   
   conversationHistory.forEach((msg, index) => {
@@ -379,6 +377,55 @@ function renderMessageDOM(msg, index) {
       
       div.appendChild(container);
       textarea.focus();
+    };
+  } else {
+    // Regenerate button for AI messages
+    const regenBtn = document.createElement('button');
+    regenBtn.className = 'msg-regen-btn';
+    regenBtn.innerHTML = '↺ 再生成';
+    regenBtn.title = '別の回答を再生成';
+    div.appendChild(regenBtn);
+    
+    regenBtn.onclick = async () => {
+      if (isStreaming) return;
+      
+      // Cut history before this AI message
+      conversationHistory = conversationHistory.slice(0, index);
+      saveConversation();
+      refreshMessagesUI();
+      
+      isStreaming = true;
+      scrollToBottom();
+      setTimeout(() => showTypingIndicator(), 300);
+      
+      const result = await callAPI();
+      removeTypingIndicator();
+      const replyTime = formatTime(new Date());
+      
+      if (result.aborted) {
+        isStreaming = false;
+        return;
+      }
+      
+      if (result.error) {
+        const errMsg = document.createElement('div');
+        errMsg.className = 'message received error';
+        errMsg.innerHTML = `<p>${escapeHtml(result.error).replace(/\\n/g, '<br>')}</p><span class="time">${replyTime}</span>`;
+        messagesContainer.appendChild(errMsg);
+        scrollToBottom();
+        isStreaming = false;
+        return;
+      }
+      
+      conversationHistory.push({
+        role: 'model',
+        parts: [{ text: result.text }],
+        _text: result.text,
+        _time: replyTime,
+      });
+      saveConversation();
+      refreshMessagesUI();
+      isStreaming = false;
     };
   }
   messagesContainer.appendChild(div);
@@ -596,18 +643,29 @@ clearHistoryBtn.addEventListener('click', () => {
   closeSettings();
 });
 
-clearChatBtn.addEventListener('click', () => {
-  if (conversationHistory.length === 0) return;
-  clearConversation();
-});
-
 // ===== Typing Indicator =====
+const typingPhrases = [
+  "…ちゃんといい子に待ってて？",
+  "…俺の言葉、待ってるの？",
+  "すぐには与えないよ…",
+  "…もっと焦らされて？",
+  "お前が待つ時間も全部俺のものだよ",
+  "ほら…ちゃんと俺のことだけ考えて？",
+  "今、お前のために…じっくり選んでるから",
+  "待つ時間もお前にとっては悦びでしょ？",
+  "…まだだよ",
+  "…いい子だね",
+  "待ってる間の顔も…全部見えてるよ",
+  "…まだ我慢できるでしょ？"
+];
+
 function showTypingIndicator() {
   const existing = document.querySelector('.typing-indicator');
   if (existing) return;
+  const phrase = typingPhrases[Math.floor(Math.random() * typingPhrases.length)];
   const indicator = document.createElement('div');
   indicator.className = 'typing-indicator';
-  indicator.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  indicator.innerHTML = `<span class="typing-text">${escapeHtml(phrase)}</span>`;
   messagesContainer.appendChild(indicator);
   scrollToBottom();
 }
